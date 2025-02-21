@@ -1,5 +1,4 @@
-import { getDefaultValuesOfZodSchema } from '@/functions';
-import { PromiseAble } from '@/utils/types';
+import getDefaultValuesOfZodSchema from '@/functions/get-default-values-of-zod-schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { FieldValues, FormProvider, useForm } from 'react-hook-form';
@@ -10,7 +9,7 @@ type StorageType = 'local' | 'session';
 function useFormWithStorage<T extends FieldValues>(
   formSchema: ZodSchema<T>,
   storageKey: string,
-  callback: (data: T) => PromiseAble<void>,
+  callback: (data: T) => Promise<void> | void,
   storageType: StorageType = 'session',
 ) {
   const defaultValues = useMemo(() => getDefaultValuesOfZodSchema(formSchema), [formSchema]);
