@@ -19,19 +19,19 @@ function useFormWithStorage<T extends FieldValues>(
     resolver: zodResolver(formSchema),
   });
 
-  const { handleSubmit, getValues, reset, watch } = methods; // Include watch
+  const { handleSubmit, getValues, reset, watch } = methods;
 
   const storage = useMemo(() => {
-    return typeof window !== 'undefined'
-      ? storageType === 'local'
-        ? window.localStorage
-        : window.sessionStorage
-      : null;
+    if (typeof window === 'undefined') return null;
+    return storageType === 'local' ? window.localStorage : window.sessionStorage;
   }, [storageType]);
 
   const saveToStorage = useCallback(() => {
-    if (storage) { // Check if storage is available
-       storage.setItem(storageKey, JSON.stringify(getValues()));
+    if (!storage) return;
+    try {
+      storage.setItem(storageKey, JSON.stringify(getValues()));
+    } catch (error) {
+      console.error('Failed to save form data to storage:', error);
     }
   }, [getValues, storage, storageKey]);
 
@@ -45,29 +45,32 @@ function useFormWithStorage<T extends FieldValues>(
   }, [reset, clearStorage, defaultValues]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') { // Check window
-      try {
-        const storedData = storage?.getItem(storageKey);
-        if (storedData) {
-          const parsedData = JSON.parse(storedData);
-          reset(parsedData); // Directly reset with parsed data
-        }
-      } catch (error) {
-        console.warn('Invalid storage data. Resetting to defaults.', error);
-        clearStorage();
+    if (!storage) return;
+
+    try {
+      const storedData = storage.getItem(storageKey);
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        reset(parsedData);
       }
+    } catch (error) {
+      console.warn('Invalid storage data. Resetting to defaults.', error);
+      clearStorage();
     }
   }, [storage, storageKey, reset, clearStorage]);
 
   const isMounted = useRef(false);
 
   useEffect(() => {
-    if (isMounted.current) {
-      saveToStorage();
-    } else {
-      isMounted.current = true;
-    }
-  }, [watch, saveToStorage]); // Watch for changes
+    const subscription = watch(() => {
+      if (isMounted.current) {
+        saveToStorage();
+      }
+    });
+
+    isMounted.current = true;
+    return () => subscription.unsubscribe(); // Cleanup on unmount
+  }, [watch, saveToStorage]);
 
   return {
     methods,
